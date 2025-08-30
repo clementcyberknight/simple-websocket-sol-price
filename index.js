@@ -39,7 +39,7 @@ function simulatePriceUpdates() {
     newPrice = Math.max(MIN_PRICE, Math.min(MAX_PRICE, newPrice));
     currentPrices[SOL_FEED_ID] = Math.round(newPrice * 100) / 100;
     broadcastPriceUpdate(SOL_FEED_ID, currentPrices[SOL_FEED_ID]);
-  }, 100); // Update every 100ms for fast simulation
+  }, 500); // Update every 100ms for fast simulation
 }
 
 // Broadcast price update to subscribed clients

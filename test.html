@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍌 Banana Trading Zone 🍌</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1d;
+            --primary-card-color: #1f2023;
+            --secondary-card-color: #2c2f36;
+            --text-color: #e1e1e1;
+            --text-muted-color: #8a8a8a;
+            --accent-color: #fca311;
+            --green-color: #28a745;
+            --red-color: #dc3545;
+            --border-color: #444;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            grid-template-rows: auto auto 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            grid-template-areas:
+                "header header"
+                "main sidebar"
+                "footer sidebar";
+        }
+
+        .card {
+            background-color: var(--primary-card-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+        }
+
+        header {
+            grid-area: header;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            margin: 0;
+            color: var(--accent-color);
+            font-weight: 700;
+        }
+
+        main {
+            grid-area: main;
+        }
+
+        aside {
+            grid-area: sidebar;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        footer {
+            grid-area: footer;
+        }
+
+        #price-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #priceDisplay {
+            font-size: 48px;
+            font-weight: 700;
+            transition: color 0.3s ease, transform 0.1s ease;
+        }
+
+        #priceDisplay.up { color: var(--green-color); transform: scale(1.05); }
+        #priceDisplay.down { color: var(--red-color); transform: scale(0.95); }
+
+        #chart-container {
+            position: relative;
+            height: 450px;
+        }
+
+        .trading-controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            align-items: flex-end;
+        }
+        
+        .trade-input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .trade-input-group.amount { grid-column: 1 / 3; }
+        .trade-input-group.leverage { grid-column: 3 / 5; }
+        .trading-controls .buy { grid-column: 1 / 3; }
+        .trading-controls .sell { grid-column: 3 / 5; }
+
+
+        .trade-input-group label {
+            font-size: 14px;
+            color: var(--text-muted-color);
+            margin-bottom: 5px;
+        }
+
+        .trade-input-group input, .trade-input-group select {
+            background-color: var(--secondary-card-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: white;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .buy { background-color: var(--green-color); }
+        .sell { background-color: var(--red-color); }
+        .buy:hover:not(:disabled) { background-color: #34c759; transform: translateY(-2px); }
+        .sell:hover:not(:disabled) { background-color: #ff453a; transform: translateY(-2px); }
+
+        #portfolio-stats h3, #trade-history h3, #connection-controls h3, #log-container h3 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .stat-label { color: var(--text-muted-color); }
+        .stat-value { font-weight: 600; }
+        #liq-price { color: var(--accent-color); font-weight: 700; }
+
+        #trade-history ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            height: 150px;
+            overflow-y: auto;
+        }
+
+        #trade-history li {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        #trade-history li:nth-child(odd) { background-color: var(--secondary-card-color); }
+        #trade-history .buy { color: var(--green-color); }
+        #trade-history .sell { color: var(--red-color); }
+
+        .connection-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .connection-buttons button {
+            background-color: var(--secondary-card-color);
+        }
+        .connection-buttons button:hover:not(:disabled) {
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+        }
+
+        #status {
+            text-align: center;
+            padding: 8px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .connected { background: var(--green-color); }
+        .disconnected { background: var(--red-color); }
+
+        #log {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            color: var(--text-muted-color);
+        }
+
+        @media (max-width: 900px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+                grid-template-areas:
+                    "header"
+                    "main"
+                    "sidebar"
+                    "footer";
+            }
+
+            body {
+                padding: 10px;
+            }
+
+            #priceDisplay {
+                font-size: 36px;
+            }
+
+            #chart-container {
+                height: 300px;
+            }
+
+            header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-container">
+        <header class="card">
+            <h1>🍌 Banana Trading Zone</h1>
+            <div id="status" class="disconnected">Disconnected</div>
+        </header>
+
+        <main class="card">
+            <div id="price-section">
+                <div id="priceDisplay">$---.--</div>
+            </div>
+            <div id="chart-container">
+                <canvas id="tradingChart"></canvas>
+            </div>
+            <div class="trading-controls">
+                <div class="trade-input-group amount">
+                    <label for="tradeAmount">Amount (SOL)</label>
+                    <input type="number" id="tradeAmount" value="10" min="0.1" step="0.1">
+                </div>
+                <div class="trade-input-group leverage">
+                    <label for="leverage">Leverage</label>
+                    <select id="leverage">
+                        <option value="10">10x</option>
+                        <option value="100">100x</option>
+                        <option value="1000">1000x</option>
+                        <option value="10000">10000x</option>
+                    </select>
+                </div>
+                <button onclick="buy()" class="buy" id="buyBtn" disabled>Buy / Long</button>
+                <button onclick="sell()" class="sell" id="sellBtn" disabled>Sell / Close</button>
+            </div>
+        </main>
+
+        <aside>
+            <div id="portfolio-stats" class="card">
+                <h3>My Portfolio</h3>
+                <div class="stat">
+                    <span class="stat-label">Balance</span>
+                    <span class="stat-value" id="balance">$1,000,000.00</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Position Size</span>
+                    <span class="stat-value" id="position-size">0.00 SOL</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Avg. Entry</span>
+                    <span class="stat-value" id="avg-entry">N/A</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Liq. Price</span>
+                    <span class="stat-value" id="liq-price">N/A</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Unrealized P/L</span>
+                    <span class="stat-value" id="unrealized-pl">$0.00</span>
+                </div>
+                 <div class="stat">
+                    <span class="stat-label">Realized P/L</span>
+                    <span class="stat-value" id="realized-pl">$0.00</span>
+                </div>
+            </div>
+
+            <div id="trade-history" class="card">
+                <h3>Trade History</h3>
+                <ul id="trade-list">
+                    <!-- Trades will be added here -->
+                </ul>
+            </div>
+
+            <div id="connection-controls" class="card">
+                <h3>Controls</h3>
+                <div class="connection-buttons">
+                    <button onclick="connect()">Connect</button>
+                    <button onclick="disconnect()">Disconnect</button>
+                    <button onclick="subscribe()" id="subscribeBtn" disabled>Subscribe</button>
+                    <button onclick="unsubscribe()" id="unsubscribeBtn" disabled>Unsubscribe</button>
+                </div>
+            </div>
+        </aside>
+
+        <footer id="log-container" class="card">
+            <h3>Event Log</h3>
+            <div id="log"></div>
+        </footer>
+    </div>
+
+    <script>
+        const WEBSOCKET_URL = 'wss://0cc444c46774.ngrok-free.app';
+        const SOL_FEED_ID = 6;
+        
+        let ws = null;
+        let chart;
+        let currentPrice = null;
+        let lastPrice = null;
+
+        const portfolio = {
+            balance: 1000000,
+            position: null, // { entryPrice: 150, amount: 10, leverage: 100, margin: 1500, liquidationPrice: 148.5 }
+            realizedPL: 0
+        };
+        
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateStatus(connected) {
+            const statusElement = document.getElementById('status');
+            const controlButtons = ['subscribeBtn', 'unsubscribeBtn'];
+            
+            if (connected) {
+                statusElement.className = 'connected';
+                statusElement.textContent = 'Connected';
+                controlButtons.forEach(id => document.getElementById(id).disabled = false);
+            } else {
+                statusElement.className = 'disconnected';
+                statusElement.textContent = 'Disconnected';
+                controlButtons.forEach(id => document.getElementById(id).disabled = true);
+                document.getElementById('buyBtn').disabled = true;
+                document.getElementById('sellBtn').disabled = true;
+            }
+        }
+        
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) return;
+            log('Connecting...');
+            ws = new WebSocket(WEBSOCKET_URL);
+            
+            ws.onopen = () => { log('Connection successful!'); updateStatus(true); };
+            ws.onmessage = handleWebSocketMessage;
+            ws.onerror = (error) => { log(`WebSocket error: ${error.message}`); };
+            ws.onclose = () => { log('Connection closed.'); updateStatus(false); };
+        }
+
+        function handleWebSocketMessage(event) {
+            try {
+                const message = JSON.parse(event.data);
+                if (message.type === 'priceUpdate') {
+                    const solUpdate = message.updates.find(u => u.feedId === SOL_FEED_ID);
+                    if (solUpdate) {
+                        lastPrice = currentPrice;
+                        currentPrice = parseFloat(solUpdate.price);
+                        updatePriceDisplay();
+                        updateChart(currentPrice);
+                        checkLiquidation();
+                        updatePortfolioDisplay();
+                    }
+                } else {
+                    log(`Received: ${JSON.stringify(message)}`);
+                    if (message.type === 'subscribed') {
+                        document.getElementById('buyBtn').disabled = false;
+                        document.getElementById('sellBtn').disabled = false;
+                    }
+                }
+            } catch (error) {
+                log(`Failed to parse message: ${error.message}`);
+            }
+        }
+
+        function updatePriceDisplay() {
+            const priceDisplay = document.getElementById('priceDisplay');
+            priceDisplay.textContent = `$${currentPrice.toFixed(2)}`;
+            
+            if (lastPrice !== null) {
+                if (currentPrice > lastPrice) {
+                    priceDisplay.className = 'up';
+                } else if (currentPrice < lastPrice) {
+                    priceDisplay.className = 'down';
+                }
+                setTimeout(() => priceDisplay.className = '', 200);
+            }
+        }
+        
+        function disconnect() {
+            if (ws) ws.close();
+        }
+        
+        function subscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: 'subscribe', subscriptions: [{ feedId: SOL_FEED_ID }] }));
+            log('Subscribing to SOL price...');
+        }
+        
+        function unsubscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: 'unsubscribe', feedIds: [SOL_FEED_ID] }));
+            log('Unsubscribing from SOL price...');
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('tradingChart').getContext('2d');
+            
+            const styles = getComputedStyle(document.documentElement);
+            const accentColor = styles.getPropertyValue('--accent-color').trim();
+            const greenColor = styles.getPropertyValue('--green-color').trim();
+            const redColor = styles.getPropertyValue('--red-color').trim();
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(252, 163, 17, 0.5)');
+            gradient.addColorStop(1, 'rgba(252, 163, 17, 0)');
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'SOL Price',
+                        data: [],
+                        borderColor: accentColor,
+                        borderWidth: 2,
+                        fill: { target: 'origin', above: gradient },
+                        tension: 0.4,
+                        pointRadius: 0
+                    }, {
+                        label: 'Buy', data: [], backgroundColor: greenColor, pointStyle: 'triangle', rotation: 0, radius: 7, showLine: false
+                    }, {
+                        label: 'Sell', data: [], backgroundColor: redColor, pointStyle: 'triangle', rotation: 180, radius: 7, showLine: false
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { type: 'time', time: { unit: 'second', displayFormats: { second: 'HH:mm:ss' } }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        y: { beginAtZero: false, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    },
+                    plugins: { legend: { display: false } },
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function updateChart(price) {
+            if (!chart) return;
+            const now = new Date();
+            chart.data.datasets[0].data.push({ x: now, y: price });
+            if (chart.data.datasets[0].data.length > 100) {
+                chart.data.datasets[0].data.shift();
+            }
+            chart.update('none');
+        }
+
+        function buy() {
+            if (currentPrice === null) return;
+            const amount = parseFloat(document.getElementById('tradeAmount').value);
+            const leverage = parseInt(document.getElementById('leverage').value);
+            if (isNaN(amount) || amount <= 0) return log('Invalid trade amount.');
+
+            const margin = (amount * currentPrice) / leverage;
+            if (portfolio.balance < margin) return log('Insufficient balance for margin.');
+            
+            if (portfolio.position) return log('Close existing position before opening a new one.');
+
+            portfolio.balance -= margin;
+            portfolio.position = {
+                entryPrice: currentPrice,
+                amount: amount,
+                leverage: leverage,
+                margin: margin,
+                liquidationPrice: currentPrice * (1 - (1 / leverage))
+            };
+
+            chart.data.datasets[1].data.push({ x: new Date(), y: currentPrice });
+            chart.update();
+            updatePortfolioDisplay();
+            addTradeToHistory('BUY', currentPrice, amount, leverage);
+        }
+
+        function sell() {
+            if (currentPrice === null || !portfolio.position) return;
+
+            const pnl = (currentPrice - portfolio.position.entryPrice) * portfolio.position.amount;
+            portfolio.balance += portfolio.position.margin + pnl;
+            portfolio.realizedPL += pnl;
+
+            chart.data.datasets[2].data.push({ x: new Date(), y: currentPrice });
+            chart.update();
+            addTradeToHistory('SELL', currentPrice, portfolio.position.amount, portfolio.position.leverage, pnl);
+            
+            portfolio.position = null;
+            updatePortfolioDisplay();
+        }
+
+        function checkLiquidation() {
+            if (!portfolio.position || !currentPrice) return;
+            if (currentPrice <= portfolio.position.liquidationPrice) {
+                log(`LIQUIDATED! Position closed at $${currentPrice}. Lost margin of $${portfolio.position.margin.toFixed(2)}.`);
+                portfolio.realizedPL -= portfolio.position.margin;
+                portfolio.position = null;
+                updatePortfolioDisplay();
+            }
+        }
+
+        function updatePortfolioDisplay() {
+            document.getElementById('balance').textContent = `$${portfolio.balance.toFixed(2)}`;
+            document.getElementById('realized-pl').textContent = `$${portfolio.realizedPL.toFixed(2)}`;
+
+            const posSizeElem = document.getElementById('position-size');
+            const unrealizedPLElem = document.getElementById('unrealized-pl');
+            const avgEntryElem = document.getElementById('avg-entry');
+            const liqPriceElem = document.getElementById('liq-price');
+
+            if (portfolio.position && currentPrice) {
+                const pnl = (currentPrice - portfolio.position.entryPrice) * portfolio.position.amount;
+                unrealizedPLElem.textContent = `$${pnl.toFixed(2)}`;
+                unrealizedPLElem.style.color = pnl >= 0 ? 'var(--green-color)' : 'var(--red-color)';
+                avgEntryElem.textContent = `@ $${portfolio.position.entryPrice.toFixed(2)}`;
+                posSizeElem.textContent = `${portfolio.position.amount.toFixed(2)} SOL (${portfolio.position.leverage}x)`;
+                liqPriceElem.textContent = `$${portfolio.position.liquidationPrice.toFixed(2)}`;
+            } else {
+                unrealizedPLElem.textContent = '$0.00';
+                unrealizedPLElem.style.color = 'var(--text-color)';
+                avgEntryElem.textContent = 'N/A';
+                posSizeElem.textContent = '0.00 SOL';
+                liqPriceElem.textContent = 'N/A';
+            }
+        }
+
+        function addTradeToHistory(type, price, amount, leverage, pnl = null) {
+            const list = document.getElementById('trade-list');
+            const item = document.createElement('li');
+            const pnlText = pnl !== null ? ` (P/L: $${pnl.toFixed(2)})` : '';
+            item.innerHTML = `
+                <span class="${type.toLowerCase()}">${type} ${amount.toFixed(2)} @ $${price.toFixed(2)} (${leverage}x)</span>
+                <span>${new Date().toLocaleTimeString()}${pnlText}</span>
+            `;
+            list.prepend(item);
+        }
+        
+        window.onload = () => {
+            initChart();
+            updatePortfolioDisplay();
+        };
+    </script>
+</body>
+</html>
